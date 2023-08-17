@@ -20,7 +20,7 @@ public class StandardizedBow : MonoBehaviour
     private Rigidbody lastProjectileRigidbody;
     private AudioSource audioSource;
     private float currentStressOnString = 0f;
-    private bool justLeftString=false, justPulledString=true;
+    private bool justLeftString=false, justPulledString=true, isInCooldown = false;
     // Easing Constants
     private const float PI = Mathf.PI;
     private const float HALFPI = Mathf.PI / 2.0f;
@@ -321,13 +321,21 @@ public class StandardizedBow : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        Shoot();
+    }
+
+    void Shoot()
+    {
+
+
         // STATE 1 - Pulling the string - Default Trigger is left mouse click
-        if (Input.GetKey(KeyCode.Mouse0))
+        if (Input.GetKey(KeyCode.Mouse0) && !isInCooldown)
         {
             // STATE 2 - The moment you just pulled the string
 
             if (justPulledString)
             {
+
                 currentTime = 0;
                 justPulledString = false;
                 // Spawn and target projectile
@@ -344,7 +352,7 @@ public class StandardizedBow : MonoBehaviour
 
             //
             currentTime += Time.deltaTime;
-            if (currentTime>stringMoveTime)
+            if (currentTime > stringMoveTime)
             {
                 currentTime = stringMoveTime;
             }
@@ -356,7 +364,7 @@ public class StandardizedBow : MonoBehaviour
         else
         {
             // STATE 3 - Just released the string - Default Trigger is left mouse click up
-            if (Input.GetKeyUp(KeyCode.Mouse0))
+            if (Input.GetKeyUp(KeyCode.Mouse0)&&!isInCooldown)
             {
                 currentTime = 0;
                 stringLastPos = bowStringPoint.position;
@@ -368,33 +376,43 @@ public class StandardizedBow : MonoBehaviour
                 firstLastDownJointRot3 = bowDownJoint3.localEulerAngles;
                 justPulledString = true;
                 justLeftString = true;
+                isInCooldown = true;
+                //Debug.Log(isInCooldown);
+
                 ShootProjectile(currentStressOnString); // Shoot the projectile
-                //
+                                                        //
 
                 if (stressEffectOnSound)
                 {
                     audioSource.pitch = audioSource.pitch / 2 + (currentStressOnString / maxStringStrength) * audioSource.pitch / 2;
-                }                
+                }
                 currentStressOnString = 0;
                 //
                 audioSource.Stop();
-                if (retractSound!=null)
-                {                    
+                if (retractSound != null)
+                {
                     audioSource.PlayOneShot(retractSound);
-                }                
+                }
             }
             // STATE 4 - Released bow returning to stable form
             if (justLeftString)
             {
                 currentTime += Time.deltaTime;
-                if (currentTime>stringRetractTime)
+                // Retract bow parts
+
+                if (currentTime > stringRetractTime)
                 {
                     justLeftString = false;
-                    
+                    isInCooldown = false;
+                    //Debug.Log(isInCooldown);
+
                 }
-                // Retract bow parts
-                RetractString();
-                RotateBackJoints();
+                else
+                {
+                    RetractString();
+                    RotateBackJoints();
+                }
+
             }
             else
             {
@@ -403,8 +421,7 @@ public class StandardizedBow : MonoBehaviour
                 currentStressOnString = 0;
             }
         }
-
-    }    
+    }
 
     #region STRING RELATED
     // Fire string pull method
@@ -439,6 +456,7 @@ public class StandardizedBow : MonoBehaviour
         lerpPercentage = currentTime / stringRetractTime;
         lerpPercentage = InterpolateStringRetract(lerpPercentage);
         bowStringPoint.position = Vector3.LerpUnclamped(stringLastPos, stringStartObjTrans.position, lerpPercentage);
+        //Debug.Log("시위복귀실행되고있음");
     }
     // Ease the string retract
     float InterpolateStringRetract(float lerpPerc)
@@ -482,6 +500,7 @@ public class StandardizedBow : MonoBehaviour
         bowDownJoint1.localEulerAngles = Vector3.LerpUnclamped(firstLastDownJointRot1, firstStartDownJointRot1, lerpPercentage);
         bowDownJoint2.localEulerAngles = Vector3.LerpUnclamped(firstLastDownJointRot2, firstStartDownJointRot2, lerpPercentage);
         bowDownJoint3.localEulerAngles = Vector3.LerpUnclamped(firstLastDownJointRot3, firstStartDownJointRot3, lerpPercentage);
+        //Debug.Log("활시위돌아오고있음2");
     }
     #endregion
 
@@ -703,7 +722,7 @@ public class StandardizedBow : MonoBehaviour
             lastProjectileScript = lastProjectile.GetComponent<StandardizedProjectile>();
             lastProjectileScript.bowScript = this;
             lastProjectileScript.rigid = lastProjectile.GetComponent<Rigidbody>();
-            lastProjectileScript.PoolTheParticles(); // Pool and parent the particles
+            //lastProjectileScript.PoolTheParticles(); // Pool and parent the particles
             lastProjectileScript.quiver = poolHolderTrans;
             lastProjectile.SetActive(false);
             projectilePool.Enqueue(lastProjectile);
@@ -716,7 +735,7 @@ public class StandardizedBow : MonoBehaviour
         lastProjectileScript = lastProjectile.GetComponent<StandardizedProjectile>();
         lastProjectileScript.bowScript = this;
         lastProjectileScript.rigid = lastProjectile.GetComponent<Rigidbody>();
-        lastProjectileScript.PoolTheParticles(); // Pool and parent the particles
+        //lastProjectileScript.PoolTheParticles(); // Pool and parent the particles
         lastProjectileScript.quiver = poolHolderTrans;
         lastProjectileRigidbody = lastProjectileScript.rigid;
         lastProjectile.SetActive(false);
